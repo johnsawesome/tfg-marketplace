@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Topic Marketplace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #00355F;
+    --orange: #E37F1C;
+    --green: #82A52C;
+    --teal: #5B9B98;
+    --sky: #88CBDF;
+    --bg: #F5F9FC;
+    --ink: #1c2b39;
+    --muted: #6b7c8c;
+    --u: 16px; /* base unit, set by fit() */
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: "Work Sans", Arial, Helvetica, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    background: var(--navy);
+    color: #fff;
+    padding: 1.4vh 2vw;
+    display: flex;
+    align-items: baseline;
+    gap: 2vw;
+    border-bottom: 0.8vh solid var(--orange);
+    flex: 0 0 auto;
+  }
+  header h1 { margin: 0; font-size: 4.6vh; font-weight: 800; letter-spacing: .01em; }
+  header .sub { font-size: 2.4vh; opacity: .9; font-weight: 400; }
+  header .clock { margin-left: auto; font-size: 1.8vh; opacity: .65; }
+
+  main {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 1.4vh 1.2vw 1.2vh;
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 4), 1fr);
+    grid-auto-rows: 1fr;
+    gap: 1.2vh 0.9vw;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: .5em;
+    box-shadow: 0 1px 3px rgba(0,53,95,.18);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    font-size: var(--u);
+    position: relative;
+  }
+  .card::after { content: ""; flex: 0 0 .7em; }
+  .card h2 {
+    margin: 0;
+    background: var(--navy);
+    color: #fff;
+    font-size: 1.25em;
+    font-weight: 700;
+    padding: .28em .6em;
+    flex: 0 0 auto;
+  }
+  .slot {
+    padding: .3em .6em .35em;
+    border-left: .3em solid var(--teal);
+    margin: .4em .5em 0;
+    flex: 0 0 auto;
+  }
+  .slot.pm { border-left-color: var(--orange); }
+  .slot .when {
+    font-size: .62em;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--navy);
+  }
+  .slot .theme { font-weight: 700; line-height: 1.15; font-size: 1em; margin-top: .05em; }
+  .slot .context { font-size: .8em; line-height: 1.2; color: #3a4b5b; margin-top: .15em; }
+  .slot .context div + div { margin-top: .12em; }
+  .slot .empty { color: var(--muted); font-style: italic; font-weight: 400; }
+
+  .card.special .banner {
+    margin: auto;
+    padding: .6em;
+    text-align: center;
+    font-weight: 700;
+    color: var(--navy);
+    font-size: 1.05em;
+  }
+  .card.special h2 { background: var(--teal); }
+
+  /* edit controls: hidden in display mode */
+  .ctl { display: none; }
+  body.edit .ctl { display: flex; position: absolute; top: .2em; right: .3em; gap: .2em; }
+  .ctl button {
+    font: inherit; font-size: .8em; border: 0; border-radius: .25em;
+    background: rgba(255,255,255,.9); color: var(--navy); cursor: pointer; padding: .05em .45em;
+  }
+  body.edit [contenteditable] { outline: 1px dashed var(--sky); outline-offset: 2px; cursor: text; }
+
+  #bar {
+    position: fixed; right: 10px; bottom: 10px; display: flex; gap: 6px;
+    opacity: 0; transition: opacity .2s; z-index: 5;
+  }
+  body:hover #bar, body.edit #bar { opacity: 1; }
+  #bar button, #bar span {
+    font: 13px Arial, sans-serif; border: 0; border-radius: 6px; padding: 6px 10px;
+    background: var(--navy); color: #fff; cursor: pointer;
+  }
+  #bar span { background: #555; cursor: default; }
+  #status { position: fixed; left: 10px; bottom: 8px; font: 12px Arial, sans-serif; color: var(--muted); z-index: 5; }
+  #status.bad { color: #b3261e; font-weight: 700; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Topic Marketplace</h1>
+  <div class="sub" id="sub">Find your breakout room: morning and afternoon discussion topics</div>
+  <div class="clock" id="clock"></div>
+</header>
+<main id="grid"></main>
+<div id="bar">
+  <span id="mode">Demo data</span>
+  <button id="btn-edit" title="Toggle edit mode (E)">Edit order (E)</button>
+  <button id="btn-copy" title="Copy the room order">Copy order</button>
+  <button id="btn-reset" title="Reset demo to defaults">Reset demo</button>
+  <button id="btn-full" title="Fullscreen (F)">Fullscreen (F)</button>
+</div>
+<div id="status"></div>
+
+<script>
+/* ============================ CONFIG ============================ */
+// Live mode: paste the Google Sheet ID (from its URL) and set the tab name.
+// Leave SHEET_ID empty to run with the sample data below.
+const CONFIG = {
+  SHEET_ID: "1Iykh5KMN1ZIvUTDodyzPvrXzGKMAu1NVQcG4JtWa_F0",
+  SHEET_TAB: "Display",
+  POLL_MS: 3000,
+  AM_LABEL: "Morning",
+  PM_LABEL: "Afternoon",
+  COLS: "auto",                  // or a number; auto: 12 rooms -> 4 x 3, 13 -> 5 x 3
+  SUBTITLE: "Find your breakout room: morning and afternoon discussion topics",
+};
+
+/* Sheet columns, left to right (header row is row 1; order = row order):
+   A Room | B AM theme | C AM context | D PM theme | E PM context | F Note
+   Context cells can hold several lines (Alt+Enter in the cell); each line shows as its own bullet.
+   Note: if both themes are blank, the Note fills the card (e.g. "Reset Room - open all day"). */
+
+/* Sample data: room names 620 / 518 / Millipond Room are real; the rest are placeholders.
+   Topic text is adapted from last year's Peer Discussions list, to stress-test text length. */
+const SAMPLE = [
+  { room: "Millipond Room", amT: "How do we become more of an embedded community partner?",
+    amC: ["Alternative funding that relies on existing community systems", "Reaching isolated communities without exploitation"],
+    pmT: "Not in use this afternoon", pmC: [] },
+  { room: "620", amT: "How to communicate the necessity of perceived “nice” but not “necessary” arts, humanities, and social connection", amC: [],
+    pmT: "How might we collaborate across sectors to gather and amplify stories that need to be told and heard right now?", pmC: [] },
+  { room: "518", amT: "The power of maybe: sitting with uncertainty in a polycrisis", amC: [],
+    pmT: "Skillful collaborative meeting tools that are restorative justice responses to systemic injustice", pmC: [] },
+  { room: "Room 4", amT: "New forms for integrated partnership among nonprofits with similar programs",
+    amC: ["How can Portland Media Center help with your messaging?"],
+    pmT: "How do we refocus our conversations for the long term?", pmC: ["Organization collaboration: matchmaking on staff and resource sharing"] },
+  { room: "Room 5", amT: "How can Volunteer Maine support your organization?", amC: ["Most effective communication strategies across all ages"],
+    pmT: "Volunteer recruitment and retention in a hostile economy", pmC: ["Developing collaborations amid perceived scarcity"] },
+  { room: "Room 6", amT: "How to assess people’s accurate capacity", amC: [],
+    pmT: "How to break through board dysfunction?", pmC: [] },
+  { room: "Room 7", amT: "How are orgs paying competitively, doing all the on-the-job training and management today’s workforce requires, AND accomplishing their mission?", amC: [],
+    pmT: "Balancing the need for immediate solutions with long-term solutions that require patience", pmC: [] },
+  { room: "Room 8", amT: "Promoting immigrant-based programs in a polarized environment", amC: ["Orgs that would benefit from job readiness or life skills training?"],
+    pmT: "What’s next for equitable and sustainable food systems in Maine?", pmC: ["How do we best support immigration legal services right now?"] },
+  { room: "Room 9", amT: "", amC: [], pmT: "", pmC: [], note: "Reset Room: open all day" },
+  { room: "Room 10", amT: "How to involve board members in the work", amC: [],
+    pmT: "Encouraging positive, productive, sustainable staff-board working relationships", pmC: [] },
+  { room: "Room 11", amT: "", amC: [], pmT: "", pmC: [] },
+  { room: "Room 12", amT: "", amC: [], pmT: "", pmC: [] },
+];
+
+/* ============================ STATE ============================ */
+const $ = (s) => document.querySelector(s);
+const grid = $("#grid");
+const LS = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+};
+const live = !!CONFIG.SHEET_ID;
+let rooms = live ? (LS.get("tm_last_good") || []) : (LS.get("tm_demo") || SAMPLE.map((r) => ({ ...r })));
+let editing = false;
+
+/* ============================ RENDER ============================ */
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function slot(kind, label, theme, ctx) {
+  const s = el("div", "slot " + kind);
+  s.appendChild(el("div", "when", label));
+  const t = el("div", "theme", theme || "Topic coming soon");
+  if (!theme) t.classList.add("empty");
+  t.dataset.field = kind === "am" ? "amT" : "pmT";
+  s.appendChild(t);
+  if (ctx && ctx.length) {
+    const c = el("div", "context");
+    ctx.forEach((line) => c.appendChild(el("div", null, line)));
+    c.dataset.field = kind === "am" ? "amC" : "pmC";
+    s.appendChild(c);
+  }
+  return s;
+}
+
+// Column count whose card shape is closest to landscape (~1.5:1) for this many rooms.
+function cols() {
+  if (CONFIG.COLS !== "auto") return CONFIG.COLS;
+  const n = Math.max(rooms.length, 1), W = grid.clientWidth || innerWidth, H = grid.clientHeight || innerHeight;
+  let best = 1, bestScore = Infinity;
+  for (let c = 1; c <= n; c++) {
+    const score = Math.abs(Math.log((W / c) / (H / Math.ceil(n / c)) / 1.5));
+    if (score < bestScore) { best = c; bestScore = score; }
+  }
+  return best;
+}
+
+function render() {
+  grid.style.setProperty("--cols", cols());
+  grid.replaceChildren();
+  rooms.forEach((r, i) => {
+    const card = el("section", "card");
+    card.dataset.i = i;
+    card.appendChild(el("h2", null, r.room));
+    const special = !r.amT && !r.pmT && r.note;
+    if (special) {
+      card.classList.add("special");
+      card.appendChild(el("div", "banner", r.note));
+    } else {
+      card.appendChild(slot("am", CONFIG.AM_LABEL, r.amT, r.amC));
+      card.appendChild(slot("pm", CONFIG.PM_LABEL, r.pmT, r.pmC));
+      if (r.note) { const n = el("div", "slot", r.note); n.style.borderLeftColor = "var(--green)"; n.style.fontSize = ".8em"; card.appendChild(n); }
+    }
+    if (!live) {
+      const ctl = el("div", "ctl");
+      const left = el("button", null, "◀"); left.title = "Move earlier";
+      const right = el("button", null, "▶"); right.title = "Move later";
+      left.onclick = () => move(i, -1); right.onclick = () => move(i, 1);
+      ctl.append(left, right); card.appendChild(ctl);
+    }
+    grid.appendChild(card);
+  });
+  if (editing) card_editable(true);
+  fit();
+}
+
+/* ============================ FIT TEXT ============================ */
+// Largest base unit at which no card overflows its box.
+function overflows() {
+  return [...grid.children].some((c) => c.scrollHeight > c.clientHeight + 1);
+}
+function fit() {
+  let lo = 8, hi = Math.max(14, window.innerHeight / 22), best = lo;
+  const root = document.documentElement;
+  for (let n = 0; n < 12; n++) {
+    const mid = (lo + hi) / 2;
+    root.style.setProperty("--u", mid + "px");
+    if (overflows()) hi = mid; else { best = mid; lo = mid; }
+  }
+  root.style.setProperty("--u", best + "px");
+}
+window.addEventListener("resize", () => { grid.style.setProperty("--cols", cols()); fit(); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+
+/* ============================ DEMO EDITING ============================ */
+function move(i, d) {
+  const j = i + d;
+  if (j < 0 || j >= rooms.length) return;
+  [rooms[i], rooms[j]] = [rooms[j], rooms[i]];
+  LS.set("tm_demo", rooms);
+  render();
+}
+function card_editable(on) {
+  grid.querySelectorAll("[data-field]").forEach((e) => {
+    e.contentEditable = on ? "true" : "false";
+    if (on) {
+      e.onblur = () => {
+        const i = +e.closest(".card").dataset.i;
+        const f = e.dataset.field;
+        rooms[i][f] = f.endsWith("C") ? [...e.children].map((d) => d.textContent.trim()).filter(Boolean) : e.textContent.trim();
+        LS.set("tm_demo", rooms);
+        fit();
+      };
+    }
+  });
+}
+function setEditing(on) {
+  if (live) return;
+  editing = on;
+  document.body.classList.toggle("edit", on);
+  $("#btn-edit").textContent = on ? "Done (E)" : "Edit order (E)";
+  render();
+}
+$("#btn-edit").onclick = () => setEditing(!editing);
+$("#btn-copy").onclick = () => {
+  const txt = rooms.map((r) => r.room).join("\n");
+  navigator.clipboard && navigator.clipboard.writeText(txt);
+  $("#btn-copy").textContent = "Copied";
+  setTimeout(() => ($("#btn-copy").textContent = "Copy order"), 1200);
+};
+$("#btn-reset").onclick = () => { LS.del("tm_demo"); rooms = SAMPLE.map((r) => ({ ...r })); render(); };
+$("#btn-full").onclick = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen());
+document.addEventListener("keydown", (e) => {
+  if (e.target.isContentEditable) return;
+  if (e.key === "e" || e.key === "E") setEditing(!editing);
+  if (e.key === "f" || e.key === "F") $("#btn-full").click();
+});
+
+/* ============================ LIVE MODE (Google Sheet) ============================ */
+// Uses the gviz JSONP-style endpoint (script tag) so there are no CORS surprises.
+// Sheet must be shared "Anyone with the link can view".
+function parseRows(table) {
+  const get = (c, i) => (c[i] && c[i].v != null ? String(c[i].v).trim() : "");
+  const lines = (s) => s.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+  return table.rows
+    .map((r) => r.c || [])
+    .filter((c) => get(c, 0))
+    .map((c) => ({ room: get(c, 0), amT: get(c, 1), amC: lines(get(c, 2)), pmT: get(c, 3), pmC: lines(get(c, 4)), note: get(c, 5) }));
+}
+let lastOk = 0, failures = 0;
+function poll() {
+  const cb = "tm_cb_" + Date.now();
+  const s = document.createElement("script");
+  const done = () => { delete window[cb]; s.remove(); };
+  window[cb] = (resp) => {
+    done();
+    if (resp.status !== "ok") return fail();
+    const next = parseRows(resp.table);
+    lastOk = Date.now(); failures = 0;
+    if (JSON.stringify(next) !== JSON.stringify(rooms)) { rooms = next; LS.set("tm_last_good", rooms); render(); }
+    showStatus();
+  };
+  s.onerror = () => { done(); fail(); };
+  s.src = "https://docs.google.com/spreadsheets/d/" + CONFIG.SHEET_ID + "/gviz/tq?tqx=out:json;responseHandler:" + cb +
+          "&headers=1&sheet=" + encodeURIComponent(CONFIG.SHEET_TAB) + "&_=" + Date.now();
+  document.head.appendChild(s);
+}
+function fail() { failures++; showStatus(); }
+function showStatus() {
+  const st = $("#status");
+  const t = lastOk ? new Date(lastOk).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" }) : "never";
+  const stale = failures >= 3;
+  st.className = stale ? "bad" : "";
+  st.textContent = stale ? "Offline: showing last data (updated " + t + ")" : "Updated " + t;
+}
+
+/* ============================ INIT ============================ */
+$("#sub").textContent = CONFIG.SUBTITLE;
+setInterval(() => ($("#clock").textContent = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })), 1000);
+render();
+if (live) {
+  $("#mode").textContent = "Live: Google Sheet";
+  $("#btn-edit").style.display = $("#btn-reset").style.display = "none";
+  poll(); setInterval(poll, CONFIG.POLL_MS);
+} else {
+  $("#status").textContent = "Demo data. Edit order with E.";
+}
+</script>
+</body>
+</html>
