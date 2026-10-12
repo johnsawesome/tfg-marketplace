@@ -11,9 +11,9 @@ NAVY, ORANGE, TEAL, GREEN = "00355F", "E37F1C", "5B9B98", "82A52C"
 PLACEHOLDER = "FFF4C2"
 OVER = "F4C7C3"
 
-# Soft limits (warning, not reject). Tuned from the demo: full-length topics across
-# 12 rooms shrink type to ~20px at 1080p.
-LIMITS = {"B": 80, "C": 140, "D": 80, "E": 140, "F": 60}
+# Soft limits (warning, not reject). With per-card fit, last year's full-length topics
+# (themes up to ~135 chars) across 13 rooms land at 21-23px at 1080p.
+LIMITS = {"B": 110, "C": 140, "D": 110, "E": 140, "F": 60}
 
 # HGI Riverwatch spaces as entered in the live Sheet 2026-10-12 ("- 1"/"- 2" = two conversations in one room).
 ROOMS = ["Canal Room - 1", "Canal Room - 2", "Millpond Room - 1", "Millpond Room - 2",
@@ -95,7 +95,7 @@ lines = [
     ("", None),
     ("Rules the display depends on", "h"),
     ("- Keep the tab named 'Display' and keep the header row and column order (Room, AM theme, AM context, PM theme, PM context, Note).", None),
-    ("- Row order is display order. Reorder rooms by moving rows; the grid sizes itself to the room count (12 -> 4x3, 13 -> 5x3).", None),
+    ("- Row order is display order. Reorder rooms by moving rows; the grid sizes itself to the room count (12 -> 4/4/4, 13 -> 5/4/4).", None),
     ("- A row with a blank Room is skipped, so you can leave spare rows at the bottom.", None),
     ("", None),
     ("Typing on the day", "h"),
