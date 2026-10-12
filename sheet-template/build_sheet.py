@@ -12,22 +12,24 @@ PLACEHOLDER = "FFF4C2"
 OVER = "F4C7C3"
 
 # Soft limits (warning, not reject). With per-card fit, last year's full-length topics
-# (themes up to ~135 chars) across 13 rooms land at 21-23px at 1080p.
+# (themes up to ~135 chars) land at roughly 19-23px at 1080p.
 LIMITS = {"B": 110, "C": 140, "D": 110, "E": 140, "F": 60}
 
-# HGI Riverwatch spaces as entered in the live Sheet 2026-10-12 ("- 1"/"- 2" = two conversations in one room).
-ROOMS = ["Canal Room - 1", "Canal Room - 2", "Millpond Room - 1", "Millpond Room - 2",
-         "Great Falls Room - 1", "Great Falls Room - 2", "Ballroom Rotunda", "Board Room",
-         "Room 415", "Room 515", "Room 520", "Room 615", "Room 620"]
+# HGI Riverwatch spaces as in the live Sheet 2026-10-12. "- 1"/"- 2" = two conversations in one room;
+# the display merges them into one split card. Group puts rooms under a shared label.
+B, M = "Ballroom", "Meeting rooms"
+ROOMS = [("Canal - 1", B), ("Canal - 2", B), ("Millpond - 1", B), ("Millpond - 2", B),
+         ("Great Falls - 1", B), ("Great Falls - 2", B), ("Rotunda", B), ("Board Room", M),
+         ("Room 415", M), ("Room 515", M), ("Room 520", M), ("Room 615", M), ("Room 620", M)]
 SPARE_ROWS = 7  # formatted and length-checked, left blank (blank Room = skipped by the display)
 
 wb = Workbook()
 ws = wb.active
 ws.title = "Display"  # the display page reads this tab by name
 
-headers = ["Room", "AM theme", "AM context", "PM theme", "PM context", "Note"]
-fills = [NAVY, TEAL, TEAL, ORANGE, ORANGE, GREEN]
-widths = [20, 42, 55, 42, 55, 32]
+headers = ["Room", "AM theme", "AM context", "PM theme", "PM context", "Note", "Group"]
+fills = [NAVY, TEAL, TEAL, ORANGE, ORANGE, GREEN, TEAL]
+widths = [20, 42, 55, 42, 55, 32, 18]
 thin = Side(style="thin", color="C9D3DC")
 border = Border(left=thin, right=thin, top=thin, bottom=thin)
 wrap_top = Alignment(wrap_text=True, vertical="top")
@@ -42,17 +44,18 @@ for i, (h, f, w) in enumerate(zip(headers, fills, widths), start=1):
 ws.row_dimensions[1].height = 24
 
 last = len(ROOMS) + SPARE_ROWS + 1
-for r, room in enumerate(ROOMS + [None] * SPARE_ROWS, start=2):
+for r, (room, group) in enumerate(ROOMS + [(None, None)] * SPARE_ROWS, start=2):
     a = ws.cell(row=r, column=1, value=room)
     a.font = Font(bold=True, color=NAVY)
     a.alignment = wrap_top
     a.border = border
     if room and "TBD" in room:
         a.fill = PatternFill("solid", fgColor=PLACEHOLDER)
-    for col in range(2, 7):
+    for col in range(2, 8):
         c = ws.cell(row=r, column=col)
         c.alignment = wrap_top
         c.border = border
+    ws.cell(row=r, column=7, value=group)
     ws.row_dimensions[r].height = 48
 
 ws.freeze_panes = "B2"
@@ -85,7 +88,7 @@ ins = wb.create_sheet("How to use")
 ins.column_dimensions["A"].width = 110
 lines = [
     ("Topic Marketplace: room sheet", "title"),
-    ("The display page reads the 'Display' tab every ~3 seconds and shows one card per row, in row order.", None),
+    ("The display page reads the 'Display' tab every ~3 seconds and shows one card per room, in row order.", None),
     ("", None),
     ("Setup (once)", "h"),
     ("1. Upload this file to Google Drive, open it, then File > Save as Google Sheets. Work in the Google copy.", None),
@@ -94,16 +97,19 @@ lines = [
     ("4. Give edit access to the staff who will type on the day.", None),
     ("", None),
     ("Rules the display depends on", "h"),
-    ("- Keep the tab named 'Display' and keep the header row and column order (Room, AM theme, AM context, PM theme, PM context, Note).", None),
-    ("- Row order is display order. Reorder rooms by moving rows; the grid sizes itself to the room count (12 -> 4/4/4, 13 -> 5/4/4).", None),
+    ("- Keep the tab named 'Display' and keep the header row and column order (Room, AM theme, AM context, PM theme, PM context, Note, Group).", None),
+    ("- Row order is display order. Reorder rooms by moving rows; the layout picks whatever row arrangement gives the largest text.", None),
+    ("- Two conversations in one room: name the rows '<Room> - 1' and '<Room> - 2' (e.g. Canal - 1, Canal - 2). They share one card, split in half.", None),
+    ("- Group: rooms with the same Group (e.g. Ballroom, Meeting rooms) sit together under that label. Leave Group blank everywhere for no grouping.", None),
+    ("- Keep room names short (e.g. Canal - 1) so each name fits on one line of its card header.", None),
     ("- A row with a blank Room is skipped, so you can leave spare rows at the bottom.", None),
     ("", None),
     ("Typing on the day", "h"),
     ("- Theme: the topic title. Context: optional supporting lines; each line in the cell becomes its own line on the card (Ctrl+Enter or Alt+Enter).", None),
     ("- Blank theme shows 'Topic coming soon', so unfilled rooms look intentional.", None),
     ("- Note: if both themes are blank, the Note fills the card (e.g. 'Reset Room: open all day', 'Not in use'). Otherwise it shows as a small line under the topics.", None),
-    ("- Red cell = over the soft length limit. It still displays, but every card's text shrinks to fit, so shorten if you can.", None),
-    (f"  Limits: themes {LIMITS['B']}, context {LIMITS['C']}, note {LIMITS['F']} characters.", None),
+    ("- Red cell = over the soft length limit. It still displays, but that card's text shrinks to fit, so shorten if you can.", None),
+    (f"  Limits: themes {LIMITS['B']}, context {LIMITS['C']}, note {LIMITS['F']} characters. Each card sizes its own text; only the wordiest cards shrink.", None),
     ("- The projector laptop never opens this Sheet; type from a second device.", None),
 ]
 for i, (text, kind) in enumerate(lines, start=1):
