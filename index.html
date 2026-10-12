@@ -16,7 +16,8 @@
     --bg: #F5F9FC;
     --ink: #1c2b39;
     --muted: #6b7c8c;
-    --u: 16px; /* base unit, set by fit() */
+    --u: 16px;  /* card text size, set per card by fit() */
+    --uh: 20px; /* room-name size, shared, set by fit() */
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
@@ -43,41 +44,46 @@
   header .sub { font-size: 2.4vh; opacity: .9; font-weight: 400; }
   header .clock { margin-left: auto; font-size: 1.8vh; opacity: .65; }
 
+  /* Rooms are laid out in balanced rows (13 -> 5/4/4), each row's cards sharing its width,
+     so no grid cells sit empty. */
   main {
     flex: 1 1 auto;
     min-height: 0;
-    padding: 1.4vh 1.2vw 1.2vh;
-    display: grid;
-    grid-template-columns: repeat(var(--cols, 4), 1fr);
-    grid-auto-rows: 1fr;
-    gap: 1.2vh 0.9vw;
+    padding: 1.2vh 1vw 1vh;
+    display: flex;
+    flex-direction: column;
+    gap: 1vh;
   }
+  .row { flex: 1 1 0; min-height: 0; display: flex; gap: 0.8vw; }
 
   .card {
+    flex: 1 1 0;
+    min-width: 0;
     background: #fff;
-    border-radius: .5em;
+    border-radius: .4em;
     box-shadow: 0 1px 3px rgba(0,53,95,.18);
     display: flex;
     flex-direction: column;
     min-height: 0;
     overflow: hidden;
-    font-size: var(--u);
+    font-size: var(--u); /* per-card size, set by fit() */
     position: relative;
   }
-  .card::after { content: ""; flex: 0 0 .7em; }
+  .card::after { content: ""; flex: 0 0 .4em; }
   .card h2 {
     margin: 0;
     background: var(--navy);
     color: #fff;
-    font-size: 1.25em;
+    font-size: var(--uh); /* same on every card, so room names line up */
     font-weight: 700;
-    padding: .28em .6em;
+    line-height: 1.15;
+    padding: .2em .5em;
     flex: 0 0 auto;
   }
   .slot {
-    padding: .3em .6em .35em;
-    border-left: .3em solid var(--teal);
-    margin: .4em .5em 0;
+    padding: .15em .45em .2em;
+    border-left: .25em solid var(--teal);
+    margin: .3em .35em 0;
     flex: 0 0 auto;
   }
   .slot.pm { border-left-color: var(--orange); }
@@ -88,8 +94,8 @@
     text-transform: uppercase;
     color: var(--navy);
   }
-  .slot .theme { font-weight: 700; line-height: 1.15; font-size: 1em; margin-top: .05em; }
-  .slot .context { font-size: .8em; line-height: 1.2; color: #3a4b5b; margin-top: .15em; }
+  .slot .theme { font-weight: 700; line-height: 1.12; font-size: 1em; margin-top: .02em; }
+  .slot .context { font-size: .8em; line-height: 1.15; color: #3a4b5b; margin-top: .1em; }
   .slot .context div + div { margin-top: .12em; }
   .slot .empty { color: var(--muted); font-style: italic; font-weight: 400; }
 
@@ -225,22 +231,29 @@ function slot(kind, label, theme, ctx) {
   return s;
 }
 
-// Column count whose card shape is closest to landscape (~1.5:1) for this many rooms.
-function cols() {
-  if (CONFIG.COLS !== "auto") return CONFIG.COLS;
+// Cards per row: pick the widest row whose card shape is closest to landscape (~1.5:1),
+// then spread rooms evenly across the rows (13 -> 5/4/4, 12 -> 4/4/4).
+function rowCounts() {
   const n = Math.max(rooms.length, 1), W = grid.clientWidth || innerWidth, H = grid.clientHeight || innerHeight;
-  let best = 1, bestScore = Infinity;
-  for (let c = 1; c <= n; c++) {
-    const score = Math.abs(Math.log((W / c) / (H / Math.ceil(n / c)) / 1.5));
-    if (score < bestScore) { best = c; bestScore = score; }
+  let c = CONFIG.COLS;
+  if (c === "auto") {
+    let bestScore = Infinity;
+    for (let k = 1; k <= n; k++) {
+      const score = Math.abs(Math.log((W / k) / (H / Math.ceil(n / k)) / 1.5));
+      if (score < bestScore) { c = k; bestScore = score; }
+    }
   }
-  return best;
+  const r = Math.ceil(n / c);
+  return Array.from({ length: r }, (_, i) => Math.floor(n / r) + (i < n % r ? 1 : 0));
 }
 
 function render() {
-  grid.style.setProperty("--cols", cols());
   grid.replaceChildren();
+  const counts = rowCounts();
+  let row = null, left = 0;
   rooms.forEach((r, i) => {
+    if (!left) { row = el("div", "row"); grid.appendChild(row); left = counts[grid.children.length - 1]; }
+    left--;
     const card = el("section", "card");
     card.dataset.i = i;
     card.appendChild(el("h2", null, r.room));
@@ -260,28 +273,38 @@ function render() {
       left.onclick = () => move(i, -1); right.onclick = () => move(i, 1);
       ctl.append(left, right); card.appendChild(ctl);
     }
-    grid.appendChild(card);
+    row.appendChild(card);
   });
   if (editing) card_editable(true);
   fit();
 }
 
 /* ============================ FIT TEXT ============================ */
-// Largest base unit at which no card overflows its box.
-function overflows() {
-  return [...grid.children].some((c) => c.scrollHeight > c.clientHeight + 1);
+// Each card gets the largest text size at which it doesn't overflow, capped at the median
+// filled card's size so most cards match and only the wordiest ones shrink. Empty cards don't
+// count toward the median (otherwise "Topic coming soon" dwarfs real topics). Room names share one size.
+function bestSize(card, lo, hi) {
+  let best = lo;
+  for (let n = 0; n < 10; n++) {
+    const mid = (lo + hi) / 2;
+    card.style.setProperty("--u", mid + "px");
+    if (card.scrollHeight > card.clientHeight + 1) hi = mid; else { best = mid; lo = mid; }
+  }
+  return best;
 }
 function fit() {
-  let lo = 8, hi = Math.max(14, window.innerHeight / 22), best = lo;
+  const cards = [...grid.querySelectorAll(".card")];
+  if (!cards.length) return;
   const root = document.documentElement;
-  for (let n = 0; n < 12; n++) {
-    const mid = (lo + hi) / 2;
-    root.style.setProperty("--u", mid + "px");
-    if (overflows()) hi = mid; else { best = mid; lo = mid; }
-  }
-  root.style.setProperty("--u", best + "px");
+  const max = Math.max(14, innerHeight / 30);
+  root.style.setProperty("--uh", innerHeight / 36 + "px");
+  const sizes = cards.map((c) => bestSize(c, 8, max));
+  const filled = sizes.filter((_, i) => { const r = rooms[i]; return r && (r.amT || r.pmT || r.note); });
+  const sorted = filled.sort((a, b) => a - b);
+  const cap = sorted.length ? sorted[Math.floor((sorted.length - 1) / 2)] : max;
+  cards.forEach((c, i) => c.style.setProperty("--u", Math.min(sizes[i], cap) + "px"));
 }
-window.addEventListener("resize", () => { grid.style.setProperty("--cols", cols()); fit(); });
+window.addEventListener("resize", render);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
 
 /* ============================ DEMO EDITING ============================ */
