@@ -11,9 +11,10 @@ NAVY, ORANGE, TEAL, GREEN = "00355F", "E37F1C", "5B9B98", "82A52C"
 PLACEHOLDER = "FFF4C2"
 OVER = "F4C7C3"
 
-# Soft limits (warning, not reject). With per-card fit, last year's full-length topics
-# (themes up to ~135 chars) land at roughly 19-23px at 1080p.
-LIMITS = {"B": 110, "C": 140, "D": 110, "E": 140, "F": 60}
+# Soft limits (warning, not reject). Themes are what the projector shows: with per-card fit,
+# last year's themes (up to ~135 chars) land at ~22px at 1080p. Context only shows when a card
+# is tapped, so its limit is just a sanity check.
+LIMITS = {"B": 110, "C": 300, "D": 110, "E": 300, "F": 60}
 
 # HGI Riverwatch spaces as in the live Sheet 2026-10-12. "- 1"/"- 2" = two conversations in one room;
 # the display merges them into one split card. Group puts rooms under a shared label.
@@ -73,7 +74,7 @@ for col, n in LIMITS.items():
         error=f"Over {n} characters. It will still show, but text shrinks for every room. Shorten if you can.",
         showInputMessage=True,
         promptTitle=f"Up to ~{n} characters",
-        prompt="Context: one line per bullet (Ctrl+Enter or Alt+Enter for a new line)." if col in "CE"
+        prompt="Context: shows when someone taps the card, not on the projector. One line per bullet (Ctrl+Enter or Alt+Enter)." if col in "CE"
         else ("Fills the whole card if both themes are blank (e.g. Reset Room: open all day)." if col == "F"
               else "Keep it short; it's read from the back of the room."),
     )
@@ -88,7 +89,7 @@ ins = wb.create_sheet("How to use")
 ins.column_dimensions["A"].width = 110
 lines = [
     ("Topic Marketplace: room sheet", "title"),
-    ("The display page reads the 'Display' tab every ~3 seconds and shows one card per room, in row order.", None),
+    ("The display page reads the 'Display' tab every ~3 seconds and shows one card per room, in row order. Attendees can open the same page on their phones via the QR code.", None),
     ("", None),
     ("Setup (once)", "h"),
     ("1. Upload this file to Google Drive, open it, then File > Save as Google Sheets. Work in the Google copy.", None),
@@ -105,11 +106,11 @@ lines = [
     ("- A row with a blank Room is skipped, so you can leave spare rows at the bottom.", None),
     ("", None),
     ("Typing on the day", "h"),
-    ("- Theme: the topic title. Context: optional supporting lines; each line in the cell becomes its own line on the card (Ctrl+Enter or Alt+Enter).", None),
+    ("- Theme: the topic title; this is what the projector shows. Context: optional supporting lines, shown only when someone taps the card on a phone or laptop (one line per bullet: Ctrl+Enter or Alt+Enter). Cards with context get a small More tag.", None),
     ("- Blank theme shows 'Topic coming soon', so unfilled rooms look intentional.", None),
     ("- Note: if both themes are blank, the Note fills the card (e.g. 'Reset Room: open all day', 'Not in use'). Otherwise it shows as a small line under the topics.", None),
     ("- Red cell = over the soft length limit. It still displays, but that card's text shrinks to fit, so shorten if you can.", None),
-    (f"  Limits: themes {LIMITS['B']}, context {LIMITS['C']}, note {LIMITS['F']} characters. Each card sizes its own text; only the wordiest cards shrink.", None),
+    (f"  Limits: themes {LIMITS['B']}, note {LIMITS['F']} characters (projector); context {LIMITS['C']} (tap-to-view only). Each card sizes its own text; only the wordiest cards shrink.", None),
     ("- The projector laptop never opens this Sheet; type from a second device.", None),
 ]
 for i, (text, kind) in enumerate(lines, start=1):

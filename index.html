@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Topic Marketplace</title>
+<title>Topic Marketplace · Together for Good 2026</title>
+<link rel="icon" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -14,39 +15,42 @@
     --teal: #5B9B98;
     --sky: #88CBDF;
     --bg: #F5F9FC;
+    --panel: #E3EEF4;
     --ink: #1c2b39;
     --muted: #6b7c8c;
     --u: 16px;  /* card text size, set per card by fit() */
     --uh: 20px; /* room-name size, shared, set by fit() */
   }
   * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; }
+  html, body { margin: 0; }
   body {
     font-family: "Work Sans", Arial, Helvetica, sans-serif;
     background: var(--bg);
     color: var(--ink);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
   }
 
+  /* ---------- header ---------- */
   header {
-    background: var(--navy);
-    color: #fff;
-    padding: 1.4vh 2vw;
+    background: #fff;
     display: flex;
-    align-items: baseline;
-    gap: 2vw;
-    border-bottom: 0.8vh solid var(--orange);
+    align-items: center;
+    gap: 1.4vw;
+    padding: .6vh 1.2vw;
+    border-bottom: .6vh solid var(--orange);
     flex: 0 0 auto;
   }
-  header h1 { margin: 0; font-size: 4.6vh; font-weight: 800; letter-spacing: .01em; }
-  header .sub { font-size: 2.4vh; opacity: .9; font-weight: 400; }
+  header .logo { height: 7vh; width: auto; display: block; }
+  header h1 { margin: 0; font-size: 3.6vh; font-weight: 800; color: var(--navy); letter-spacing: .01em; }
+  header .sub { font-size: 2vh; color: var(--muted); }
   header .sub:empty { display: none; }
-  header .clock { margin-left: auto; font-size: 1.8vh; opacity: .65; }
+  header .qr { margin-left: auto; display: flex; align-items: center; gap: .8vw; text-decoration: none; color: var(--navy); }
+  header .qr span { font-size: 1.6vh; font-weight: 700; line-height: 1.2; text-align: right; }
+  header .qr img { height: 7vh; width: 7vh; display: block; }
 
-  /* Rooms are laid out in rows whose cards share the row's width (a split room counts double),
-     so no grid cells sit empty. Rooms with a Group (Sheet column G) sit together in a labelled panel. */
+  /* ---------- layout ---------- */
+  /* Presentation: everything fits one screen. Rows share their width between cards (a split room
+     counts double); rooms with a Group (Sheet column G) sit together in a labelled panel. */
+  body.present { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
   main {
     flex: 1 1 auto;
     min-height: 0;
@@ -56,91 +60,117 @@
     gap: 1vh;
   }
   .group { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 1vh; }
-  .group.labelled { background: #E3EEF4; border-radius: .6vh; padding: .5vh .5vw .8vh; gap: .8vh; }
-  .group .glabel {
+  .group.labelled { background: var(--panel); border-radius: .6vh; padding: .5vh .5vw .8vh; gap: .8vh; }
+  .glabel {
     flex: 0 0 auto; font-size: 1.7vh; font-weight: 800; letter-spacing: .14em;
     text-transform: uppercase; color: var(--navy); padding-left: .2vw;
   }
-  .row { flex: 1 1 0; min-height: 0; display: flex; gap: 0.8vw; }
+  .row { flex: 1 1 0; min-height: 0; display: flex; gap: .8vw; }
 
-  /* A split room ("Canal - 1" + "Canal - 2") is one card with a half per section. */
-  .halves { flex: 1 1 auto; min-height: 0; display: flex; }
-  .half { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
-  .half + .half { border-left: 2px solid #E3EEF4; }
-  .half h3 {
-    margin: .25em .35em 0; font-size: .72em; font-weight: 800; letter-spacing: .06em;
-    text-transform: uppercase; color: var(--teal);
-  }
-  .half.special .banner { margin: auto; padding: .6em; text-align: center; font-weight: 700; color: var(--navy); font-size: 1.05em; }
-
+  /* ---------- cards ---------- */
   .card {
     flex: var(--w, 1) 1 0;
     min-width: 0;
+    min-height: 0;
     background: #fff;
     border-radius: .4em;
     box-shadow: 0 1px 3px rgba(0,53,95,.18);
     display: flex;
     flex-direction: column;
-    min-height: 0;
     overflow: hidden;
-    font-size: var(--u); /* per-card size, set by fit() */
+    font-size: var(--u);
+    cursor: pointer;
     position: relative;
   }
-  .card::after { content: ""; flex: 0 0 .4em; }
+  .card:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
   .card h2 {
     margin: 0;
     background: var(--navy);
     color: #fff;
-    font-size: var(--uh); /* same on every card, so room names line up */
+    font-size: var(--uh);
     font-weight: 700;
     line-height: 1.15;
     padding: .2em .5em;
     flex: 0 0 auto;
   }
+  .card.special h2 { background: var(--teal); }
+  /* Split room ("Canal - 1" + "Canal - 2"): one card, a half per section. Halves size to their
+     content so the afternoon slot sits right under the morning one, not pinned to the bottom. */
+  .halves { flex: 0 1 auto; min-height: 0; display: flex; align-items: stretch; padding-bottom: .5em; }
+  .half { flex: 1 1 0; min-width: 0; }
+  .half + .half { border-left: 2px solid var(--panel); }
+  .half h3 {
+    margin: .3em .45em 0; font-size: .7em; font-weight: 800; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--teal);
+  }
+  .card > .slots { padding-bottom: .5em; }
   .slot {
     padding: .15em .45em .2em;
     border-left: .25em solid var(--teal);
     margin: .3em .35em 0;
-    flex: 0 0 auto;
+    overflow-wrap: break-word;
   }
   .slot.pm { border-left-color: var(--orange); }
-  .slot .when {
-    font-size: .62em;
-    font-weight: 700;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-    color: var(--navy);
+  .slot.note { border-left-color: var(--green); font-size: .8em; }
+  .when { font-size: .62em; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--navy); }
+  .theme { font-weight: 700; line-height: 1.15; margin-top: .02em; }
+  .theme.empty { color: var(--muted); font-style: italic; font-weight: 400; }
+  .more {
+    display: inline-block; vertical-align: .1em; margin-left: .3em; padding: 0 .35em;
+    font-size: .62em; font-weight: 700; letter-spacing: .04em; line-height: 1.5;
+    color: #fff; background: var(--teal); border-radius: .7em;
   }
-  .slot { overflow-wrap: break-word; }
-  .slot .theme { font-weight: 700; line-height: 1.12; font-size: 1em; margin-top: .02em; }
-  .slot .context { font-size: .8em; line-height: 1.15; color: #3a4b5b; margin-top: .1em; }
-  .slot .context div + div { margin-top: .12em; }
-  .slot .empty { color: var(--muted); font-style: italic; font-weight: 400; }
+  .banner { padding: .8em .6em; text-align: center; font-weight: 700; color: var(--navy); font-size: 1.05em; margin: auto 0; }
+  .card.special .slots { flex: 1 1 auto; display: flex; }
+  .card.special .banner { margin: auto; }
 
-  .card.special .banner {
-    margin: auto;
-    padding: .6em;
-    text-align: center;
-    font-weight: 700;
-    color: var(--navy);
-    font-size: 1.05em;
+  /* ---------- phone / narrow screens ---------- */
+  body.mobile header { position: sticky; top: 0; z-index: 3; padding: 8px 16px; gap: 12px; border-bottom-width: 4px; }
+  body.mobile header .logo { height: 44px; }
+  body.mobile header h1 { font-size: 21px; }
+  body.mobile header .sub, body.mobile header .qr { display: none; }
+  body.mobile main { display: block; padding: 12px 16px 48px; }
+  body.mobile .group { display: block; margin-bottom: 16px; }
+  body.mobile .group.labelled { padding: 8px 8px 2px; border-radius: 8px; }
+  body.mobile .glabel { font-size: 13px; padding: 2px 4px 8px; }
+  body.mobile .row { display: block; }
+  body.mobile .card { --u: 17px; --uh: 19px; margin-bottom: 10px; border-radius: 8px; }
+  body.mobile .halves { display: block; }
+  body.mobile .half + .half { border-left: 0; border-top: 2px solid var(--panel); margin-top: .3em; }
+  body.mobile #bar { display: none; }
+  body.mobile #status { position: static; padding: 0 16px 16px; }
+
+  /* ---------- detail sheet ---------- */
+  #detail {
+    position: fixed; inset: 0; z-index: 10; background: rgba(0,26,48,.55);
+    display: flex; align-items: center; justify-content: center; padding: 3vh 3vw;
   }
-  .card.special h2 { background: var(--teal); }
-
-  /* edit controls: hidden in display mode */
-  .ctl { display: none; }
-  body.edit .ctl { display: flex; position: absolute; top: .2em; right: .3em; gap: .2em; }
-  .ctl button {
-    font: inherit; font-size: .8em; border: 0; border-radius: .25em;
-    background: rgba(255,255,255,.9); color: var(--navy); cursor: pointer; padding: .05em .45em;
+  #detail[hidden] { display: none; }
+  #detail .sheet {
+    background: #fff; border-radius: 12px; width: min(760px, 100%); max-height: 100%; overflow: auto;
+    box-shadow: 0 10px 40px rgba(0,0,0,.3); font-size: 19px; position: relative;
   }
-  body.edit [contenteditable] { outline: 1px dashed var(--sky); outline-offset: 2px; cursor: text; }
+  #detail h2 { margin: 0; background: var(--navy); color: #fff; font-size: 1.35em; padding: .55em 2.6em .55em .8em; position: sticky; top: 0; }
+  #detail .close {
+    position: absolute; top: .35em; right: .4em; z-index: 1; width: 1.9em; height: 1.9em; border: 0; border-radius: 50%;
+    background: rgba(255,255,255,.18); color: #fff; font: 700 1.3em/1 Arial, sans-serif; cursor: pointer;
+  }
+  #detail .part { padding: .2em .9em .9em; }
+  #detail .part + .part { border-top: 2px solid var(--panel); }
+  #detail h3 { margin: .6em 0 0; font-size: .8em; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--teal); }
+  #detail .slot { margin: .6em 0 0; padding: .2em .7em .3em; }
+  #detail .when { font-size: .7em; }
+  #detail ul { margin: .35em 0 0; padding-left: 1.1em; color: #3a4b5b; font-size: .9em; line-height: 1.35; }
+  #detail li + li { margin-top: .25em; }
+  body.mobile #detail { align-items: flex-end; padding: 0; }
+  body.mobile #detail .sheet { border-radius: 14px 14px 0 0; max-height: 88vh; font-size: 17px; }
 
+  /* ---------- chrome ---------- */
   #bar {
     position: fixed; right: 10px; bottom: 10px; display: flex; gap: 6px;
     opacity: 0; transition: opacity .2s; z-index: 5;
   }
-  body:hover #bar, body.edit #bar { opacity: 1; }
+  body:hover #bar { opacity: 1; }
   #bar button, #bar span {
     font: 13px Arial, sans-serif; border: 0; border-radius: 6px; padding: 6px 10px;
     background: var(--navy); color: #fff; cursor: pointer;
@@ -150,18 +180,22 @@
   #status.bad { color: #b3261e; font-weight: 700; }
 </style>
 </head>
-<body>
+<body class="present">
 <header>
+  <img class="logo" src="logo.png" alt="Together for Good 2026">
   <h1>Topic Marketplace</h1>
-  <div class="sub" id="sub">Find your breakout room: morning and afternoon discussion topics</div>
-  <div class="clock" id="clock"></div>
+  <div class="sub" id="sub"></div>
+  <a class="qr" id="qr" href="./"><span>Scan for topic details<br>on your phone</span><img src="qr.svg" alt="QR code for this page"></a>
 </header>
 <main id="grid"></main>
+<div id="detail" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+    <button class="close" id="detail-close" aria-label="Close">×</button>
+    <div id="detail-body"></div>
+  </div>
+</div>
 <div id="bar">
   <span id="mode">Demo data</span>
-  <button id="btn-edit" title="Toggle edit mode (E)">Edit order (E)</button>
-  <button id="btn-copy" title="Copy the room order">Copy order</button>
-  <button id="btn-reset" title="Reset demo to defaults">Reset demo</button>
   <button id="btn-full" title="Fullscreen (F)">Fullscreen (F)</button>
 </div>
 <div id="status"></div>
@@ -178,41 +212,26 @@ const CONFIG = {
   PM_LABEL: "Afternoon",
   COLS: "auto",                  // max room-units per row, or "auto" to pick the layout with the largest text
   SUBTITLE: "",                  // optional line beside the title; empty hides it
+  MOBILE_QUERY: "(max-width: 820px), (max-aspect-ratio: 4/5)", // phones and portrait tablets get the scrolling list
 };
 
 /* Sheet columns, left to right (header row is row 1; order = row order):
    A Room | B AM theme | C AM context | D PM theme | E PM context | F Note | G Group
-   Context cells can hold several lines (Alt+Enter in the cell); each line shows as its own bullet.
+   Themes show on the board; context lines (one per line in the cell) show when a card is tapped.
    Note: if both themes are blank, the Note fills the card (e.g. "Reset Room - open all day").
    Rooms named "<Name> - <n>" (Canal - 1, Canal - 2) share one card, split into halves.
    Group: rooms with the same Group sit together under that label; leave all blank for no grouping. */
 
-/* Sample data: room names 620 / 518 / Millipond Room are real; the rest are placeholders.
-   Topic text is adapted from last year's Peer Discussions list, to stress-test text length. */
+/* Sample data for when SHEET_ID is empty. */
 const SAMPLE = [
-  { room: "Millipond Room", amT: "How do we become more of an embedded community partner?",
-    amC: ["Alternative funding that relies on existing community systems", "Reaching isolated communities without exploitation"],
-    pmT: "Not in use this afternoon", pmC: [] },
-  { room: "620", amT: "How to communicate the necessity of perceived “nice” but not “necessary” arts, humanities, and social connection", amC: [],
-    pmT: "How might we collaborate across sectors to gather and amplify stories that need to be told and heard right now?", pmC: [] },
-  { room: "518", amT: "The power of maybe: sitting with uncertainty in a polycrisis", amC: [],
-    pmT: "Skillful collaborative meeting tools that are restorative justice responses to systemic injustice", pmC: [] },
-  { room: "Room 4", amT: "New forms for integrated partnership among nonprofits with similar programs",
-    amC: ["How can Portland Media Center help with your messaging?"],
-    pmT: "How do we refocus our conversations for the long term?", pmC: ["Organization collaboration: matchmaking on staff and resource sharing"] },
-  { room: "Room 5", amT: "How can Volunteer Maine support your organization?", amC: ["Most effective communication strategies across all ages"],
-    pmT: "Volunteer recruitment and retention in a hostile economy", pmC: ["Developing collaborations amid perceived scarcity"] },
-  { room: "Room 6", amT: "How to assess people’s accurate capacity", amC: [],
-    pmT: "How to break through board dysfunction?", pmC: [] },
-  { room: "Room 7", amT: "How are orgs paying competitively, doing all the on-the-job training and management today’s workforce requires, AND accomplishing their mission?", amC: [],
-    pmT: "Balancing the need for immediate solutions with long-term solutions that require patience", pmC: [] },
-  { room: "Room 8", amT: "Promoting immigrant-based programs in a polarized environment", amC: ["Orgs that would benefit from job readiness or life skills training?"],
-    pmT: "What’s next for equitable and sustainable food systems in Maine?", pmC: ["How do we best support immigration legal services right now?"] },
-  { room: "Room 9", amT: "", amC: [], pmT: "", pmC: [], note: "Reset Room: open all day" },
-  { room: "Room 10", amT: "How to involve board members in the work", amC: [],
-    pmT: "Encouraging positive, productive, sustainable staff-board working relationships", pmC: [] },
-  { room: "Room 11", amT: "", amC: [], pmT: "", pmC: [] },
-  { room: "Room 12", amT: "", amC: [], pmT: "", pmC: [] },
+  { room: "Canal - 1", group: "Ballroom", amT: "How do we become more of an embedded community partner?",
+    amC: ["Alternative funding that relies on existing community systems", "Reaching isolated communities without exploitation"], pmT: "", pmC: [], note: "" },
+  { room: "Canal - 2", group: "Ballroom", amT: "The power of maybe: sitting with uncertainty in a polycrisis", amC: [],
+    pmT: "How do we refocus our conversations for the long term?", pmC: ["Matchmaking on staff and resource sharing"], note: "" },
+  { room: "Rotunda", group: "Ballroom", amT: "How to assess people’s accurate capacity", amC: [], pmT: "How to break through board dysfunction?", pmC: [], note: "" },
+  { room: "Board Room", group: "Meeting rooms", amT: "", amC: [], pmT: "", pmC: [], note: "Reset Room - open all day" },
+  { room: "Room 415", group: "Meeting rooms", amT: "How to involve board members in the work", amC: [], pmT: "", pmC: [], note: "" },
+  { room: "Room 515", group: "Meeting rooms", amT: "", amC: [], pmT: "", pmC: [], note: "" },
 ];
 
 /* ============================ STATE ============================ */
@@ -221,45 +240,31 @@ const grid = $("#grid");
 const LS = {
   get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
-  del(k) { try { localStorage.removeItem(k); } catch (e) {} },
 };
 const live = !!CONFIG.SHEET_ID;
-let rooms = live ? (LS.get("tm_last_good") || []) : (LS.get("tm_demo") || SAMPLE.map((r) => ({ ...r })));
-let editing = false;
+const mq = matchMedia(CONFIG.MOBILE_QUERY);
+let rooms = live ? (LS.get("tm_last_good") || []) : SAMPLE;
+let openKey = null; // name of the card whose details are showing
 
-/* ============================ RENDER ============================ */
+/* ============================ BUILD ============================ */
 function el(tag, cls, text) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
   if (text != null) e.textContent = String(text).replace(/\//g, "/​"); // let "a/b/c" wrap after slashes
   return e;
 }
-
-function slot(kind, label, theme, ctx) {
-  const s = el("div", "slot " + kind);
-  s.appendChild(el("div", "when", label));
-  const t = el("div", "theme", theme || "Topic coming soon");
-  if (!theme) t.classList.add("empty");
-  t.dataset.field = kind === "am" ? "amT" : "pmT";
-  s.appendChild(t);
-  if (ctx && ctx.length) {
-    const c = el("div", "context");
-    ctx.forEach((line) => c.appendChild(el("div", null, line)));
-    c.dataset.field = kind === "am" ? "amC" : "pmC";
-    s.appendChild(c);
-  }
-  return s;
-}
+const hasTopic = (p) => p.amT || p.pmT || p.note;
+const isSpecial = (p) => !p.amT && !p.pmT && p.note;
 
 // Sheet rows -> cards -> groups. "Canal - 1" and "Canal - 2" become one "Canal" card with two parts.
 function cardsByGroup() {
   const groups = new Map(), byName = new Map();
-  rooms.forEach((r, i) => {
+  rooms.forEach((r) => {
     const m = r.room.match(/^(.*\S)\s+-\s+(\S+)$/);
     const g = r.group || "", base = m ? m[1] : r.room, key = g + "|" + base;
-    const part = { ...r, i, label: m ? base + " " + m[2] : r.room };
+    const part = { ...r, label: m ? base + " " + m[2] : r.room };
     if (m && byName.has(key)) { byName.get(key).parts.push(part); return; }
-    const card = { name: base, parts: [part] };
+    const card = { key, name: base, parts: [part] };
     if (m) byName.set(key, card);
     if (!groups.has(g)) groups.set(g, []);
     groups.get(g).push(card);
@@ -280,44 +285,44 @@ function splitRows(cards, n) {
   return rows;
 }
 
-function topics(p) {
-  const box = el("div", "topics");
-  if (!p.amT && !p.pmT && p.note) { box.classList.add("special"); box.appendChild(el("div", "banner", p.note)); return box; }
-  box.appendChild(slot("am", CONFIG.AM_LABEL, p.amT, p.amC));
-  box.appendChild(slot("pm", CONFIG.PM_LABEL, p.pmT, p.pmC));
-  if (p.note) { const n = el("div", "slot", p.note); n.style.borderLeftColor = "var(--green)"; n.style.fontSize = ".8em"; box.appendChild(n); }
+// Board view of one room section: themes only, with a "More" tag when there's context behind a tap.
+function slotsEl(p) {
+  const box = el("div", "slots");
+  if (isSpecial(p)) { box.appendChild(el("div", "banner", p.note)); return box; }
+  [["am", CONFIG.AM_LABEL, p.amT, p.amC], ["pm", CONFIG.PM_LABEL, p.pmT, p.pmC]].forEach(([kind, label, theme, ctx]) => {
+    const s = el("div", "slot " + kind);
+    s.appendChild(el("div", "when", label));
+    const t = el("div", "theme" + (theme ? "" : " empty"), theme || "Topic coming soon");
+    if (theme && ctx.length) t.appendChild(el("span", "more", "More"));
+    s.appendChild(t);
+    box.appendChild(s);
+  });
+  if (p.note) box.appendChild(el("div", "slot note", p.note));
   return box;
 }
 
 function cardEl(c) {
   const card = el("section", "card");
   card.style.setProperty("--w", c.parts.length);
-  card.dataset.filled = c.parts.some((p) => p.amT || p.pmT || p.note) ? "1" : "";
+  card.dataset.filled = c.parts.some(hasTopic) ? "1" : "";
+  card.tabIndex = 0;
+  card.setAttribute("role", "button");
+  card.setAttribute("aria-label", c.name + ": show details");
+  card.onclick = () => openDetail(c.key);
+  card.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(c.key); } };
   card.appendChild(el("h2", null, c.name));
   if (c.parts.length === 1) {
-    const p = c.parts[0], t = topics(p);
-    card.dataset.i = p.i;
-    if (t.classList.contains("special")) card.classList.add("special");
-    card.append(...t.childNodes);
+    if (isSpecial(c.parts[0])) card.classList.add("special");
+    card.appendChild(slotsEl(c.parts[0]));
   } else {
     const halves = el("div", "halves");
     c.parts.forEach((p) => {
       const half = el("div", "half");
-      half.dataset.i = p.i;
       half.appendChild(el("h3", null, p.label));
-      const t = topics(p);
-      if (t.classList.contains("special")) half.classList.add("special");
-      half.append(...t.childNodes);
+      half.appendChild(slotsEl(p));
       halves.appendChild(half);
     });
     card.appendChild(halves);
-  }
-  if (!live) {
-    const i = c.parts[0].i, ctl = el("div", "ctl");
-    const left = el("button", null, "◀"); left.title = "Move earlier";
-    const right = el("button", null, "▶"); right.title = "Move later";
-    left.onclick = () => move(i, -1); right.onclick = () => move(i, 1);
-    ctl.append(left, right); card.appendChild(ctl);
   }
   return card;
 }
@@ -336,37 +341,48 @@ function build(groups, perRow) {
   });
 }
 
-// Try each row width and keep the one where the text comes out largest.
+// Phones get one scrolling column. The projector tries each row width and keeps the one where the text is largest.
 function render() {
+  const mobile = mq.matches;
+  document.body.classList.toggle("mobile", mobile);
+  document.body.classList.toggle("present", !mobile);
   const groups = cardsByGroup();
   if (!groups.length) { grid.replaceChildren(); return; }
-  const maxUnits = Math.max(...groups.map((g) => g.units));
-  const options = CONFIG.COLS === "auto" ? Array.from({ length: maxUnits }, (_, k) => k + 1) : [CONFIG.COLS];
-  let best = options[0], bestScore = -1;
-  if (options.length > 1) options.forEach((n) => { build(groups, n); const s = fit(); if (s > bestScore) { best = n; bestScore = s; } });
-  build(groups, best);
-  if (editing) card_editable(true);
-  fit();
+  if (mobile) {
+    build(groups, Infinity);
+  } else {
+    const maxUnits = Math.max(...groups.map((g) => g.units));
+    const options = CONFIG.COLS === "auto" ? Array.from({ length: maxUnits }, (_, k) => k + 1) : [CONFIG.COLS];
+    let best = options[0], bestScore = -1;
+    if (options.length > 1) options.forEach((n) => { build(groups, n); const s = fit(); if (s > bestScore) { best = n; bestScore = s; } });
+    build(groups, best);
+    fit();
+  }
+  if (openKey) fillDetail();
 }
 
-/* ============================ FIT TEXT ============================ */
-// Each card gets the largest text size at which it doesn't overflow, capped at the median
-// filled card's size so most cards match and only the wordiest ones shrink. Empty cards don't
-// count toward the median (otherwise "Topic coming soon" dwarfs real topics). Room names share one size.
+/* ============================ FIT TEXT (projector) ============================ */
+// Each card gets the largest text size at which nothing overflows, capped at the median filled card's
+// size so most cards match and only the wordiest shrink. Empty cards don't count toward the median.
+function overflows(card) {
+  if (card.scrollHeight > card.clientHeight + 1) return true;
+  const h = card.querySelector(".halves");
+  return !!h && h.scrollHeight > h.clientHeight + 1;
+}
 function bestSize(card, lo, hi) {
   let best = lo;
   for (let n = 0; n < 10; n++) {
     const mid = (lo + hi) / 2;
     card.style.setProperty("--u", mid + "px");
-    if (card.scrollHeight > card.clientHeight + 1) hi = mid; else { best = mid; lo = mid; }
+    if (overflows(card)) hi = mid; else { best = mid; lo = mid; }
   }
   return best;
 }
 function fit() {
   const cards = [...grid.querySelectorAll(".card")];
-  if (!cards.length) return;
+  if (!cards.length) return 0;
   const root = document.documentElement;
-  const max = Math.max(14, innerHeight / 30);
+  const max = Math.max(14, innerHeight / 28);
   root.style.setProperty("--uh", innerHeight / 36 + "px");
   const sizes = cards.map((c) => bestSize(c, 8, max));
   const sorted = sizes.filter((_, i) => cards[i].dataset.filled).sort((a, b) => a - b);
@@ -376,53 +392,50 @@ function fit() {
   // Layout score: the common size, nudged by the smallest so one crushed card loses.
   return cap + 0.5 * Math.min(...final);
 }
-window.addEventListener("resize", render);
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
 
-/* ============================ DEMO EDITING ============================ */
-function move(i, d) {
-  const j = i + d;
-  if (j < 0 || j >= rooms.length) return;
-  [rooms[i], rooms[j]] = [rooms[j], rooms[i]];
-  LS.set("tm_demo", rooms);
-  render();
+/* ============================ DETAIL SHEET ============================ */
+function openDetail(key) {
+  openKey = key;
+  fillDetail();
+  $("#detail").hidden = false;
+  $("#detail-close").focus();
 }
-function card_editable(on) {
-  grid.querySelectorAll("[data-field]").forEach((e) => {
-    e.contentEditable = on ? "true" : "false";
-    if (on) {
-      e.onblur = () => {
-        const i = +e.closest("[data-i]").dataset.i;
-        const f = e.dataset.field;
-        const txt = (n) => n.textContent.replace(/​/g, "").trim();
-        rooms[i][f] = f.endsWith("C") ? [...e.children].map(txt).filter(Boolean) : txt(e);
-        LS.set("tm_demo", rooms);
-        fit();
-      };
-    }
+function closeDetail() { openKey = null; $("#detail").hidden = true; }
+function fillDetail() {
+  const card = cardsByGroup().flatMap((g) => g.cards).find((c) => c.key === openKey);
+  if (!card) return closeDetail();
+  const body = $("#detail-body");
+  body.replaceChildren();
+  const title = el("h2", null, card.name);
+  title.id = "detail-title";
+  body.appendChild(title);
+  card.parts.forEach((p) => {
+    const part = el("div", "part");
+    if (card.parts.length > 1) part.appendChild(el("h3", null, p.label));
+    if (isSpecial(p)) { part.appendChild(el("div", "banner", p.note)); body.appendChild(part); return; }
+    [["am", CONFIG.AM_LABEL, p.amT, p.amC], ["pm", CONFIG.PM_LABEL, p.pmT, p.pmC]].forEach(([kind, label, theme, ctx]) => {
+      const s = el("div", "slot " + kind);
+      s.appendChild(el("div", "when", label));
+      s.appendChild(el("div", "theme" + (theme ? "" : " empty"), theme || "Topic coming soon"));
+      if (ctx.length) { const ul = el("ul"); ctx.forEach((line) => ul.appendChild(el("li", null, line))); s.appendChild(ul); }
+      part.appendChild(s);
+    });
+    if (p.note) part.appendChild(el("div", "slot note", p.note));
+    body.appendChild(part);
   });
 }
-function setEditing(on) {
-  if (live) return;
-  editing = on;
-  document.body.classList.toggle("edit", on);
-  $("#btn-edit").textContent = on ? "Done (E)" : "Edit order (E)";
-  render();
-}
-$("#btn-edit").onclick = () => setEditing(!editing);
-$("#btn-copy").onclick = () => {
-  const txt = rooms.map((r) => r.room).join("\n");
-  navigator.clipboard && navigator.clipboard.writeText(txt);
-  $("#btn-copy").textContent = "Copied";
-  setTimeout(() => ($("#btn-copy").textContent = "Copy order"), 1200);
-};
-$("#btn-reset").onclick = () => { LS.del("tm_demo"); rooms = SAMPLE.map((r) => ({ ...r })); render(); };
+$("#detail-close").onclick = closeDetail;
+$("#detail").onclick = (e) => { if (e.target.id === "detail") closeDetail(); };
+
+/* ============================ CONTROLS ============================ */
 $("#btn-full").onclick = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen());
 document.addEventListener("keydown", (e) => {
-  if (e.target.isContentEditable) return;
-  if (e.key === "e" || e.key === "E") setEditing(!editing);
-  if (e.key === "f" || e.key === "F") $("#btn-full").click();
+  if (e.key === "Escape") closeDetail();
+  if ((e.key === "f" || e.key === "F") && !mq.matches) $("#btn-full").click();
 });
+window.addEventListener("resize", render);
+mq.addEventListener("change", render);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
 
 /* ============================ LIVE MODE (Google Sheet) ============================ */
 // Uses the gviz JSONP-style endpoint (script tag) so there are no CORS surprises.
@@ -464,14 +477,12 @@ function showStatus() {
 
 /* ============================ INIT ============================ */
 $("#sub").textContent = CONFIG.SUBTITLE;
-setInterval(() => ($("#clock").textContent = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })), 1000);
 render();
 if (live) {
   $("#mode").textContent = "Live: Google Sheet";
-  $("#btn-edit").style.display = $("#btn-reset").style.display = "none";
   poll(); setInterval(poll, CONFIG.POLL_MS);
 } else {
-  $("#status").textContent = "Demo data. Edit order with E.";
+  $("#status").textContent = "Demo data";
 }
 </script>
 </body>
