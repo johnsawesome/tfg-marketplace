@@ -42,10 +42,11 @@
   }
   header h1 { margin: 0; font-size: 4.6vh; font-weight: 800; letter-spacing: .01em; }
   header .sub { font-size: 2.4vh; opacity: .9; font-weight: 400; }
+  header .sub:empty { display: none; }
   header .clock { margin-left: auto; font-size: 1.8vh; opacity: .65; }
 
-  /* Rooms are laid out in balanced rows (13 -> 5/4/4), each row's cards sharing its width,
-     so no grid cells sit empty. */
+  /* Rooms are laid out in rows whose cards share the row's width (a split room counts double),
+     so no grid cells sit empty. Rooms with a Group (Sheet column G) sit together in a labelled panel. */
   main {
     flex: 1 1 auto;
     min-height: 0;
@@ -54,10 +55,26 @@
     flex-direction: column;
     gap: 1vh;
   }
+  .group { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 1vh; }
+  .group.labelled { background: #E3EEF4; border-radius: .6vh; padding: .5vh .5vw .8vh; gap: .8vh; }
+  .group .glabel {
+    flex: 0 0 auto; font-size: 1.7vh; font-weight: 800; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--navy); padding-left: .2vw;
+  }
   .row { flex: 1 1 0; min-height: 0; display: flex; gap: 0.8vw; }
 
+  /* A split room ("Canal - 1" + "Canal - 2") is one card with a half per section. */
+  .halves { flex: 1 1 auto; min-height: 0; display: flex; }
+  .half { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+  .half + .half { border-left: 2px solid #E3EEF4; }
+  .half h3 {
+    margin: .25em .35em 0; font-size: .72em; font-weight: 800; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--teal);
+  }
+  .half.special .banner { margin: auto; padding: .6em; text-align: center; font-weight: 700; color: var(--navy); font-size: 1.05em; }
+
   .card {
-    flex: 1 1 0;
+    flex: var(--w, 1) 1 0;
     min-width: 0;
     background: #fff;
     border-radius: .4em;
@@ -94,6 +111,7 @@
     text-transform: uppercase;
     color: var(--navy);
   }
+  .slot { overflow-wrap: break-word; }
   .slot .theme { font-weight: 700; line-height: 1.12; font-size: 1em; margin-top: .02em; }
   .slot .context { font-size: .8em; line-height: 1.15; color: #3a4b5b; margin-top: .1em; }
   .slot .context div + div { margin-top: .12em; }
@@ -158,14 +176,16 @@ const CONFIG = {
   POLL_MS: 3000,
   AM_LABEL: "Morning",
   PM_LABEL: "Afternoon",
-  COLS: "auto",                  // or a number; auto: 12 rooms -> 4 x 3, 13 -> 5 x 3
-  SUBTITLE: "Find your breakout room: morning and afternoon discussion topics",
+  COLS: "auto",                  // max room-units per row, or "auto" to pick the layout with the largest text
+  SUBTITLE: "",                  // optional line beside the title; empty hides it
 };
 
 /* Sheet columns, left to right (header row is row 1; order = row order):
-   A Room | B AM theme | C AM context | D PM theme | E PM context | F Note
+   A Room | B AM theme | C AM context | D PM theme | E PM context | F Note | G Group
    Context cells can hold several lines (Alt+Enter in the cell); each line shows as its own bullet.
-   Note: if both themes are blank, the Note fills the card (e.g. "Reset Room - open all day"). */
+   Note: if both themes are blank, the Note fills the card (e.g. "Reset Room - open all day").
+   Rooms named "<Name> - <n>" (Canal - 1, Canal - 2) share one card, split into halves.
+   Group: rooms with the same Group sit together under that label; leave all blank for no grouping. */
 
 /* Sample data: room names 620 / 518 / Millipond Room are real; the rest are placeholders.
    Topic text is adapted from last year's Peer Discussions list, to stress-test text length. */
@@ -211,7 +231,7 @@ let editing = false;
 function el(tag, cls, text) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
-  if (text != null) e.textContent = text;
+  if (text != null) e.textContent = String(text).replace(/\//g, "/​"); // let "a/b/c" wrap after slashes
   return e;
 }
 
@@ -231,50 +251,100 @@ function slot(kind, label, theme, ctx) {
   return s;
 }
 
-// Cards per row: pick the widest row whose card shape is closest to landscape (~1.5:1),
-// then spread rooms evenly across the rows (13 -> 5/4/4, 12 -> 4/4/4).
-function rowCounts() {
-  const n = Math.max(rooms.length, 1), W = grid.clientWidth || innerWidth, H = grid.clientHeight || innerHeight;
-  let c = CONFIG.COLS;
-  if (c === "auto") {
-    let bestScore = Infinity;
-    for (let k = 1; k <= n; k++) {
-      const score = Math.abs(Math.log((W / k) / (H / Math.ceil(n / k)) / 1.5));
-      if (score < bestScore) { c = k; bestScore = score; }
-    }
-  }
-  const r = Math.ceil(n / c);
-  return Array.from({ length: r }, (_, i) => Math.floor(n / r) + (i < n % r ? 1 : 0));
+// Sheet rows -> cards -> groups. "Canal - 1" and "Canal - 2" become one "Canal" card with two parts.
+function cardsByGroup() {
+  const groups = new Map(), byName = new Map();
+  rooms.forEach((r, i) => {
+    const m = r.room.match(/^(.*\S)\s+-\s+(\S+)$/);
+    const g = r.group || "", base = m ? m[1] : r.room, key = g + "|" + base;
+    const part = { ...r, i, label: m ? base + " " + m[2] : r.room };
+    if (m && byName.has(key)) { byName.get(key).parts.push(part); return; }
+    const card = { name: base, parts: [part] };
+    if (m) byName.set(key, card);
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(card);
+  });
+  groups.forEach((cards) => cards.forEach((c) => { if (c.parts.length === 1) c.name = c.parts[0].room; }));
+  return [...groups].map(([name, cards]) => ({ name, cards, units: cards.reduce((a, c) => a + c.parts.length, 0) }));
 }
 
-function render() {
-  grid.replaceChildren();
-  const counts = rowCounts();
-  let row = null, left = 0;
-  rooms.forEach((r, i) => {
-    if (!left) { row = el("div", "row"); grid.appendChild(row); left = counts[grid.children.length - 1]; }
-    left--;
-    const card = el("section", "card");
-    card.dataset.i = i;
-    card.appendChild(el("h2", null, r.room));
-    const special = !r.amT && !r.pmT && r.note;
-    if (special) {
-      card.classList.add("special");
-      card.appendChild(el("div", "banner", r.note));
-    } else {
-      card.appendChild(slot("am", CONFIG.AM_LABEL, r.amT, r.amC));
-      card.appendChild(slot("pm", CONFIG.PM_LABEL, r.pmT, r.pmC));
-      if (r.note) { const n = el("div", "slot", r.note); n.style.borderLeftColor = "var(--green)"; n.style.fontSize = ".8em"; card.appendChild(n); }
-    }
-    if (!live) {
-      const ctl = el("div", "ctl");
-      const left = el("button", null, "◀"); left.title = "Move earlier";
-      const right = el("button", null, "▶"); right.title = "Move later";
-      left.onclick = () => move(i, -1); right.onclick = () => move(i, 1);
-      ctl.append(left, right); card.appendChild(ctl);
-    }
-    row.appendChild(card);
+// Split a group's cards into n rows of roughly equal width (in room-units).
+function splitRows(cards, n) {
+  const total = cards.reduce((a, c) => a + c.parts.length, 0), rows = [[]];
+  let acc = 0;
+  cards.forEach((c) => {
+    if (rows.length < n && rows[rows.length - 1].length && acc + c.parts.length / 2 > total * rows.length / n) rows.push([]);
+    rows[rows.length - 1].push(c);
+    acc += c.parts.length;
   });
+  return rows;
+}
+
+function topics(p) {
+  const box = el("div", "topics");
+  if (!p.amT && !p.pmT && p.note) { box.classList.add("special"); box.appendChild(el("div", "banner", p.note)); return box; }
+  box.appendChild(slot("am", CONFIG.AM_LABEL, p.amT, p.amC));
+  box.appendChild(slot("pm", CONFIG.PM_LABEL, p.pmT, p.pmC));
+  if (p.note) { const n = el("div", "slot", p.note); n.style.borderLeftColor = "var(--green)"; n.style.fontSize = ".8em"; box.appendChild(n); }
+  return box;
+}
+
+function cardEl(c) {
+  const card = el("section", "card");
+  card.style.setProperty("--w", c.parts.length);
+  card.dataset.filled = c.parts.some((p) => p.amT || p.pmT || p.note) ? "1" : "";
+  card.appendChild(el("h2", null, c.name));
+  if (c.parts.length === 1) {
+    const p = c.parts[0], t = topics(p);
+    card.dataset.i = p.i;
+    if (t.classList.contains("special")) card.classList.add("special");
+    card.append(...t.childNodes);
+  } else {
+    const halves = el("div", "halves");
+    c.parts.forEach((p) => {
+      const half = el("div", "half");
+      half.dataset.i = p.i;
+      half.appendChild(el("h3", null, p.label));
+      const t = topics(p);
+      if (t.classList.contains("special")) half.classList.add("special");
+      half.append(...t.childNodes);
+      halves.appendChild(half);
+    });
+    card.appendChild(halves);
+  }
+  if (!live) {
+    const i = c.parts[0].i, ctl = el("div", "ctl");
+    const left = el("button", null, "◀"); left.title = "Move earlier";
+    const right = el("button", null, "▶"); right.title = "Move later";
+    left.onclick = () => move(i, -1); right.onclick = () => move(i, 1);
+    ctl.append(left, right); card.appendChild(ctl);
+  }
+  return card;
+}
+
+// Lay out with at most `perRow` room-units per row.
+function build(groups, perRow) {
+  grid.replaceChildren();
+  const labelled = groups.some((g) => g.name);
+  groups.forEach((g) => {
+    const rows = splitRows(g.cards, Math.ceil(g.units / perRow));
+    const box = el("div", "group" + (labelled && g.name ? " labelled" : ""));
+    box.style.flexGrow = rows.length;
+    if (labelled && g.name) box.appendChild(el("div", "glabel", g.name));
+    rows.forEach((cards) => { const row = el("div", "row"); cards.forEach((c) => row.appendChild(cardEl(c))); box.appendChild(row); });
+    grid.appendChild(box);
+  });
+}
+
+// Try each row width and keep the one where the text comes out largest.
+function render() {
+  const groups = cardsByGroup();
+  if (!groups.length) { grid.replaceChildren(); return; }
+  const maxUnits = Math.max(...groups.map((g) => g.units));
+  const options = CONFIG.COLS === "auto" ? Array.from({ length: maxUnits }, (_, k) => k + 1) : [CONFIG.COLS];
+  let best = options[0], bestScore = -1;
+  if (options.length > 1) options.forEach((n) => { build(groups, n); const s = fit(); if (s > bestScore) { best = n; bestScore = s; } });
+  build(groups, best);
   if (editing) card_editable(true);
   fit();
 }
@@ -299,13 +369,15 @@ function fit() {
   const max = Math.max(14, innerHeight / 30);
   root.style.setProperty("--uh", innerHeight / 36 + "px");
   const sizes = cards.map((c) => bestSize(c, 8, max));
-  const filled = sizes.filter((_, i) => { const r = rooms[i]; return r && (r.amT || r.pmT || r.note); });
-  const sorted = filled.sort((a, b) => a - b);
+  const sorted = sizes.filter((_, i) => cards[i].dataset.filled).sort((a, b) => a - b);
   const cap = sorted.length ? sorted[Math.floor((sorted.length - 1) / 2)] : max;
-  cards.forEach((c, i) => c.style.setProperty("--u", Math.min(sizes[i], cap) + "px"));
+  const final = sizes.map((s) => Math.min(s, cap));
+  cards.forEach((c, i) => c.style.setProperty("--u", final[i] + "px"));
+  // Layout score: the common size, nudged by the smallest so one crushed card loses.
+  return cap + 0.5 * Math.min(...final);
 }
 window.addEventListener("resize", render);
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
 
 /* ============================ DEMO EDITING ============================ */
 function move(i, d) {
@@ -320,9 +392,10 @@ function card_editable(on) {
     e.contentEditable = on ? "true" : "false";
     if (on) {
       e.onblur = () => {
-        const i = +e.closest(".card").dataset.i;
+        const i = +e.closest("[data-i]").dataset.i;
         const f = e.dataset.field;
-        rooms[i][f] = f.endsWith("C") ? [...e.children].map((d) => d.textContent.trim()).filter(Boolean) : e.textContent.trim();
+        const txt = (n) => n.textContent.replace(/​/g, "").trim();
+        rooms[i][f] = f.endsWith("C") ? [...e.children].map(txt).filter(Boolean) : txt(e);
         LS.set("tm_demo", rooms);
         fit();
       };
@@ -360,7 +433,7 @@ function parseRows(table) {
   return table.rows
     .map((r) => r.c || [])
     .filter((c) => get(c, 0))
-    .map((c) => ({ room: get(c, 0), amT: get(c, 1), amC: lines(get(c, 2)), pmT: get(c, 3), pmC: lines(get(c, 4)), note: get(c, 5) }));
+    .map((c) => ({ room: get(c, 0), amT: get(c, 1), amC: lines(get(c, 2)), pmT: get(c, 3), pmC: lines(get(c, 4)), note: get(c, 5), group: get(c, 6) }));
 }
 let lastOk = 0, failures = 0;
 function poll() {
