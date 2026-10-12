@@ -438,7 +438,9 @@ mq.addEventListener("change", render);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
 
 /* ============================ LIVE MODE (Google Sheet) ============================ */
-// Uses the gviz JSONP-style endpoint (script tag) so there are no CORS surprises.
+// Fetches the Sheet's gviz JSON with no cookies, so every device gets the same anonymous response
+// (a script-tag/JSONP load sent the viewer's Google cookies, and a signed-in phone could get a
+// non-data reply that never fired a callback). Google allows this cross-origin read.
 // Sheet must be shared "Anyone with the link can view".
 function parseRows(table) {
   const get = (c, i) => (c[i] && c[i].v != null ? String(c[i].v).trim() : "");
@@ -448,31 +450,38 @@ function parseRows(table) {
     .filter((c) => get(c, 0))
     .map((c) => ({ room: get(c, 0), amT: get(c, 1), amC: lines(get(c, 2)), pmT: get(c, 3), pmC: lines(get(c, 4)), note: get(c, 5), group: get(c, 6) }));
 }
-let lastOk = 0, failures = 0;
-function poll() {
-  const cb = "tm_cb_" + Date.now();
-  const s = document.createElement("script");
-  const done = () => { delete window[cb]; s.remove(); };
-  window[cb] = (resp) => {
-    done();
-    if (resp.status !== "ok") return fail();
+let lastOk = 0, failures = 0, polling = false;
+async function poll() {
+  if (polling) return; // a slow reply shouldn't stack requests
+  polling = true;
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const url = "https://docs.google.com/spreadsheets/d/" + CONFIG.SHEET_ID + "/gviz/tq?tqx=out:json&headers=1&sheet=" +
+                encodeURIComponent(CONFIG.SHEET_TAB) + "&_=" + Date.now();
+    const res = await fetch(url, { credentials: "omit", cache: "no-store", signal: ctl.signal });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const m = (await res.text()).match(/setResponse\(([\s\S]*)\);?\s*$/);
+    if (!m) throw new Error("unexpected reply");
+    const resp = JSON.parse(m[1]);
+    if (resp.status !== "ok") throw new Error("sheet error");
     const next = parseRows(resp.table);
     lastOk = Date.now(); failures = 0;
     if (JSON.stringify(next) !== JSON.stringify(rooms)) { rooms = next; LS.set("tm_last_good", rooms); render(); }
+  } catch (e) {
+    failures++;
+    console.warn("[topic-marketplace] sheet fetch failed:", e.message || e);
+  } finally {
+    clearTimeout(timer);
+    polling = false;
     showStatus();
-  };
-  s.onerror = () => { done(); fail(); };
-  s.src = "https://docs.google.com/spreadsheets/d/" + CONFIG.SHEET_ID + "/gviz/tq?tqx=out:json;responseHandler:" + cb +
-          "&headers=1&sheet=" + encodeURIComponent(CONFIG.SHEET_TAB) + "&_=" + Date.now();
-  document.head.appendChild(s);
+  }
 }
-function fail() { failures++; showStatus(); }
 function showStatus() {
   const st = $("#status");
-  const t = lastOk ? new Date(lastOk).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" }) : "never";
-  const stale = failures >= 3;
-  st.className = stale ? "bad" : "";
-  st.textContent = stale ? "Offline: showing last data (updated " + t + ")" : "Updated " + t;
+  const t = lastOk && new Date(lastOk).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
+  st.className = failures >= 3 || (!lastOk && failures) ? "bad" : "";
+  if (!lastOk) st.textContent = failures ? (rooms.length ? "Can't reach the topic sheet: showing saved topics, retrying" : "Can't reach the topic sheet: retrying") : "Loading topics…";
+  else st.textContent = failures >= 3 ? "Offline: showing last data (updated " + t + ")" : "Updated " + t;
 }
 
 /* ============================ INIT ============================ */
@@ -480,6 +489,7 @@ $("#sub").textContent = CONFIG.SUBTITLE;
 render();
 if (live) {
   $("#mode").textContent = "Live: Google Sheet";
+  showStatus();
   poll(); setInterval(poll, CONFIG.POLL_MS);
 } else {
   $("#status").textContent = "Demo data";
