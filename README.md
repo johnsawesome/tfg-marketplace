@@ -6,7 +6,7 @@ Sheet; `index.html` polls it every ~3s and shows one TFG-branded card per room.
 - **Live page:** https://johnsawesome.github.io/tfg-marketplace/
 - **Data:** Google Sheet `1Iykh5KMN1ZIvUTDodyzPvrXzGKMAu1NVQcG4JtWa_F0`, tab `Display` (shared anyone-with-link Viewer; topic text only, no attendee data)
 - **Sheet template:** `sheet-template/` (`build_sheet.py` regenerates the .xlsx)
-- **Assets:** `make_assets.py` rebuilds `logo.png` (from `Together_For_Good_2026_Logo.png`) and `qr.svg`. Re-run it with the new URL if the page moves.
+- **Assets:** `make_assets.py` rebuilds `logo.png` (from `Together_For_Good_2026_Logo.png`) and `qr.svg`. The QR points at the MANP redirect https://www.nonprofitmaine.org/tfg-topics, so if the page moves, update the redirect, not the QR.
 
 Two layouts from one page:
 - **Projector** (wide screens): everything fits one screen; themes only. Groups sit side by side (Ballroom | Meeting rooms) so every card is the same size; `CONFIG.LAYOUT` switches to `"stacked"` or `"auto"`. **F** toggles fullscreen.

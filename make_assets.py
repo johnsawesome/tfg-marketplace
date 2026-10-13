@@ -1,6 +1,6 @@
 """Regenerate the page's image assets: a web-sized logo and the QR code that points at the page.
 
-Run after changing the logo or moving the page:  python make_assets.py [page-url]
+Run after changing the logo or the QR target (the MANP redirect, which points at wherever the page is hosted):  python make_assets.py [page-url]
 Needs Pillow and segno (pip install --user pillow segno).
 """
 import sys
@@ -10,7 +10,7 @@ import segno
 from PIL import Image
 
 HERE = Path(__file__).parent
-URL = sys.argv[1] if len(sys.argv) > 1 else "https://johnsawesome.github.io/tfg-marketplace/"
+URL = sys.argv[1] if len(sys.argv) > 1 else "https://www.nonprofitmaine.org/tfg-topics"
 
 # Logo: trim the transparent margin, scale to 2x the largest size the header shows it at.
 src = Image.open(HERE / "Together_For_Good_2026_Logo.png")
