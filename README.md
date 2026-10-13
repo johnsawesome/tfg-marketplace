@@ -9,7 +9,7 @@ Sheet; `index.html` polls it every ~3s and shows one TFG-branded card per room.
 - **Assets:** `make_assets.py` rebuilds `logo.png` (from `Together_For_Good_2026_Logo.png`) and `qr.svg`. Re-run it with the new URL if the page moves.
 
 Two layouts from one page:
-- **Projector** (wide screens): everything fits one screen; themes only. **F** toggles fullscreen.
+- **Projector** (wide screens): everything fits one screen; themes only. Groups sit side by side (Ballroom | Meeting rooms) so every card is the same size; `CONFIG.LAYOUT` switches to `"stacked"` or `"auto"`. **F** toggles fullscreen.
 - **Phone** (narrow or portrait): scrolling list grouped by area. Reached via the header QR code.
 
 On both, clicking or tapping a card opens its details (context lines). If the network drops, the page keeps
