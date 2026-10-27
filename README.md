@@ -3,10 +3,11 @@
 Live breakout-room board for Together for Good 2026 (Thu 2026-11-19). Staff type topics into a Google
 Sheet; `index.html` polls it every ~3s and shows one TFG-branded card per room.
 
-- **Live page:** https://johnsawesome.github.io/tfg-marketplace/
+- **Public page:** https://www.nonprofitmaine.org/tfg-marketplace (a Novi page, header/footer hidden, that embeds the GitHub Pages site below in an iframe; share and print this URL)
+- **Hosted source:** https://johnsawesome.github.io/tfg-marketplace/ (what the Novi iframe loads)
 - **Data:** Google Sheet `1Iykh5KMN1ZIvUTDodyzPvrXzGKMAu1NVQcG4JtWa_F0`, tab `Display` (shared anyone-with-link Viewer; topic text only, no attendee data)
 - **Sheet template:** `sheet-template/` (`build_sheet.py` regenerates the .xlsx)
-- **Assets:** `make_assets.py` rebuilds `logo.png` (from `Together_For_Good_2026_Logo.png`) and `qr.svg`. The QR points at the MANP redirect https://www.nonprofitmaine.org/tfg-topics, so if the page moves, update the redirect, not the QR.
+- **Assets:** `make_assets.py` rebuilds `logo.png` (from `Together_For_Good_2026_Logo.png`) and `qr.svg`. The QR points at https://www.nonprofitmaine.org/tfg-marketplace, so keep that Novi page's Friendly File Name the same; if it ever changes, rerun `make_assets.py` with the new URL and reprint.
 
 Two layouts from one page:
 - **Projector** (wide screens): everything fits one screen; themes only. Groups sit side by side (Ballroom | Meeting rooms) so every card is the same size; `CONFIG.LAYOUT` switches to `"stacked"` or `"auto"`. **F** toggles fullscreen.
