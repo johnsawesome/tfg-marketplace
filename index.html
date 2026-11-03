@@ -45,11 +45,9 @@
   header h1 { margin: 0; font-size: 3.6vh; font-weight: 800; color: var(--navy); letter-spacing: .01em; }
   header .sub { font-size: 2vh; color: var(--muted); }
   header .sub:empty { display: none; }
-  header .qr { margin-left: auto; display: flex; align-items: center; gap: .8vw; text-decoration: none; color: var(--navy); }
+  header .qr { margin-left: auto; display: flex; align-items: center; color: var(--navy); }
   header .qr span { font-size: 1.9vh; font-weight: 400; line-height: 1.3; text-align: right; }
   header .qr b { font-weight: 600; }
-  header .qr .more { font-size: .85em; font-weight: 600; vertical-align: .05em; margin: 0 .1em; }
-  header .qr img { height: 7vh; width: 7vh; display: block; }
 
   /* ---------- layout ---------- */
   /* Presentation: everything fits one screen. Rows share their width between cards (a split room
@@ -199,7 +197,7 @@
   <img class="logo" src="logo.png" alt="Together for Good 2026">
   <h1>Topic Marketplace</h1>
   <div class="sub" id="sub"></div>
-  <a class="qr" id="qr" href="https://www.nonprofitmaine.org/tfg-marketplace" target="_top"><span><b>Scan to open this board on your phone</b><br>Tap topics marked <span class="more">More</span> for extra details</span><img src="qr.svg" alt="QR code for this page"></a>
+  <div class="qr" id="qr"><span><b>View on your phone</b> by scanning the QR code on your table<br>or by navigating to <b>nonprofitmaine.org/tfg-marketplace</b></span></div>
 </header>
 <main id="grid"></main>
 <div id="detail" hidden>
