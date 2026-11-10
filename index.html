@@ -374,12 +374,14 @@ function render() {
     const sides = groups.length < 2 || CONFIG.LAYOUT === "stacked" ? [false] : CONFIG.LAYOUT === "side" ? [true] : [false, true];
     const options = sides.flatMap((side) => ns.map((n) => [n, side]));
     // Layouts whose text comes out (nearly) as large tie, which is the norm when topics are blank or
-    // short; among those, keep the one with the best-proportioned cards rather than tall thin strips.
+    // short. Among those, keep the one with the fewest rows (widest groups get more room, as with
+    // real topics) whose cards aren't tall thin strips; failing that, the best-proportioned one.
     let best = options[0];
     if (options.length > 1) {
-      const tried = options.map((o) => { build(groups, ...o); return { o, score: fit(), shape: shapeCost() }; });
+      const tried = options.map((o) => { build(groups, ...o); return { o, score: fit(), ...cardShape() }; });
       const top = Math.max(...tried.map((t) => t.score));
-      best = tried.filter((t) => t.score >= top - 1).sort((a, b) => a.shape - b.shape)[0].o;
+      const ties = tried.filter((t) => t.score >= top - 1);
+      best = (ties.find((t) => t.narrowest >= MIN_ASPECT) || ties.sort((a, b) => a.cost - b.cost)[0]).o;
     }
     build(groups, ...best);
     fit();
@@ -387,16 +389,17 @@ function render() {
   if (openKey) fillDetail();
 }
 
-// How far the cards are from a comfortable landscape shape (per room-unit, so split rooms count
-// as two). 0 is ideal; tall narrow columns and long flat strips both score high.
-const CARD_ASPECT = 1.5;
-function shapeCost() {
+// Card proportions, per room-unit so split rooms count as two. `narrowest` is the smallest
+// width/height; `cost` is the average distance from a comfortable landscape shape (0 is ideal).
+const CARD_ASPECT = 1.5, MIN_ASPECT = 0.7;
+function cardShape() {
   const cards = [...grid.querySelectorAll(".card")];
-  if (!cards.length) return 0;
-  return cards.reduce((a, c) => {
-    const w = c.clientWidth / (Number(c.style.getPropertyValue("--w")) || 1), h = c.clientHeight || 1;
-    return a + Math.abs(Math.log(w / h / CARD_ASPECT));
-  }, 0) / cards.length;
+  if (!cards.length) return { narrowest: Infinity, cost: 0 };
+  const ratios = cards.map((c) => c.clientWidth / (Number(c.style.getPropertyValue("--w")) || 1) / (c.clientHeight || 1));
+  return {
+    narrowest: Math.min(...ratios),
+    cost: ratios.reduce((a, r) => a + Math.abs(Math.log(r / CARD_ASPECT)), 0) / ratios.length,
+  };
 }
 
 /* ============================ FIT TEXT (projector) ============================ */
