@@ -346,7 +346,11 @@ function build(groups, n, side) {
   grid.classList.toggle("side", !!side);
   const labelled = groups.some((g) => g.name);
   groups.forEach((g, i) => {
-    const rows = splitRows(g.cards, side ? Math.min(n, g.cards.length) : Math.ceil(g.units / n));
+    let r = side ? Math.min(n, g.cards.length) : Math.ceil(g.units / n);
+    // Side-by-side: if the rooms don't divide evenly into r rows (4 rooms in 3 rows comes out 1-2-1),
+    // use the nearest smaller row count that does (4 rooms -> 2x2), as long as that's 2 or more rows.
+    if (side && g.units % r) for (let k = r - 1; k >= 2; k--) if (g.units % k === 0 && k <= g.cards.length) { r = k; break; }
+    const rows = splitRows(g.cards, r);
     const box = el("div", "group" + (labelled && g.name ? " labelled tone-" + (i % 2) : ""));
     box.style.flexGrow = side ? Math.ceil(g.units / rows.length) : rows.length;
     if (labelled && g.name) box.appendChild(el("div", "glabel", g.name));
@@ -369,12 +373,30 @@ function render() {
     const ns = CONFIG.COLS === "auto" ? Array.from({ length: maxUnits }, (_, k) => k + 1) : [CONFIG.COLS];
     const sides = groups.length < 2 || CONFIG.LAYOUT === "stacked" ? [false] : CONFIG.LAYOUT === "side" ? [true] : [false, true];
     const options = sides.flatMap((side) => ns.map((n) => [n, side]));
-    let best = options[0], bestScore = -1;
-    if (options.length > 1) options.forEach((o) => { build(groups, ...o); const s = fit(); if (s > bestScore) { best = o; bestScore = s; } });
+    // Layouts whose text comes out (nearly) as large tie, which is the norm when topics are blank or
+    // short; among those, keep the one with the best-proportioned cards rather than tall thin strips.
+    let best = options[0];
+    if (options.length > 1) {
+      const tried = options.map((o) => { build(groups, ...o); return { o, score: fit(), shape: shapeCost() }; });
+      const top = Math.max(...tried.map((t) => t.score));
+      best = tried.filter((t) => t.score >= top - 1).sort((a, b) => a.shape - b.shape)[0].o;
+    }
     build(groups, ...best);
     fit();
   }
   if (openKey) fillDetail();
+}
+
+// How far the cards are from a comfortable landscape shape (per room-unit, so split rooms count
+// as two). 0 is ideal; tall narrow columns and long flat strips both score high.
+const CARD_ASPECT = 1.5;
+function shapeCost() {
+  const cards = [...grid.querySelectorAll(".card")];
+  if (!cards.length) return 0;
+  return cards.reduce((a, c) => {
+    const w = c.clientWidth / (Number(c.style.getPropertyValue("--w")) || 1), h = c.clientHeight || 1;
+    return a + Math.abs(Math.log(w / h / CARD_ASPECT));
+  }, 0) / cards.length;
 }
 
 /* ============================ FIT TEXT (projector) ============================ */
